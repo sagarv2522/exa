@@ -1,34 +1,73 @@
-# ml_app.py
+# app.py
 import streamlit as st
-from sklearn import datasets
-from sklearn.model_selection import train_test_split
-from sklearn.svm import SVC
-from sklearn.metrics import accuracy_score
+import numpy as np
+from PIL import Image
+import h5py
 
-# Load the Iris dataset
-iris = datasets.load_iris()
-X_train, X_test, y_train, y_test = train_test_split(iris.data, iris.target, test_size=0.2, random_state=42)
+def load_dataset():
+    ''' 
+    This Function is used to read the h5py file to normal np array formate and decode the file formate
 
-# Train the model
-model = SVC()
-model.fit(X_train, y_train)
+    Args: None
+    Return: np arrays of required feature
 
-# Create a Streamlit web app
-st.title("Simple ML Web App")
+    rewrite the code accordingly with replacement of file path of data
+    '''
+    
+    # load the train dataset as h5 file
+    train_dataset = h5py.File('train_catvnoncat.h5', "r")  # change the file path accordingly
+    train_set_x_orig = np.array(train_dataset["train_set_x"][:]) 
+    train_set_y_orig = np.array(train_dataset["train_set_y"][:])
 
-# Add a sidebar for user input
-st.sidebar.header("User Input")
+    # load the test dataset as h5 file
+    test_dataset = h5py.File('test_catvnoncat.h5', "r")
+    test_set_x_orig = np.array(test_dataset["test_set_x"][:])
+    test_set_y_orig = np.array(test_dataset["test_set_y"][:])
 
-# Collect user input for prediction
-sepal_length = st.sidebar.slider("Sepal Length", float(X_train[:, 0].min()), float(X_train[:, 0].max()), float(X_train[:, 0].mean()))
-sepal_width = st.sidebar.slider("Sepal Width", float(X_train[:, 1].min()), float(X_train[:, 1].max()), float(X_train[:, 1].mean()))
-petal_length = st.sidebar.slider("Petal Length", float(X_train[:, 2].min()), float(X_train[:, 2].max()), float(X_train[:, 2].mean()))
-petal_width = st.sidebar.slider("Petal Width", float(X_train[:, 3].min()), float(X_train[:, 3].max()), float(X_train[:, 3].mean()))
+    # extract the list of classes
+    classes = np.array(test_dataset["list_classes"][:])
 
-# Make predictions
-user_input = [[sepal_length, sepal_width, petal_length, petal_width]]
-prediction = model.predict(user_input)
+    # reshape the dimension of y set
+    train_set_y = train_set_y_orig.reshape((1, train_set_y_orig.shape[0]))
+    test_set_y = test_set_y_orig.reshape((1, test_set_y_orig.shape[0]))
 
-# Display the prediction and accuracy
-st.write(f"Prediction: {iris.target_names[prediction[0]]}")
-st.write(f"Model Accuracy: {accuracy_score(y_test, model.predict(X_test)) * 100:.2f}%")
+    assert train_set_y.shape == (1, train_set_y_orig.shape[0])
+    assert test_set_y.shape == (1, test_set_y_orig.shape[0])
+
+    return train_set_x_orig, train_set_y_orig, test_set_x_orig, test_set_y_orig, classes
+
+
+def getting_data():
+    # Loading the data (cat/non-cat)
+    train_X_org, train_Y, test_X_org, test_Y, classes = load_dataset()
+
+    # reshaping the image related to dimension
+    train_x_flatten = train_X_org.reshape(train_X_org.shape[0], -1).T
+    test_x_flatten = test_X_org.reshape(test_X_org.shape[0], -1).T
+
+    assert train_x_flatten.shape != train_X_org.shape
+    assert test_x_flatten.shape != test_X_org.shape
+
+    # standardize the image with 255
+    train_X = train_x_flatten / 255
+    test_X = test_x_flatten / 255
+
+    return train_X, train_Y, test_X, test_Y, classes
+
+
+
+st.title("Image Dataset Viewer")
+st.write("Select the dataset (Train or Test), input an index, and view the corresponding image.")
+
+dataset_option = st.selectbox("Select Dataset", ["Train", "Test"])
+index = st.number_input("Enter Index:", min_value=0, value=0)
+
+if dataset_option == "Train":
+    data, labels, _, _, _ = getting_data()
+else:
+    _, _, data, labels, _ = getting_data()
+
+if 0 <= index < data.shape[1]:
+    st.image(data[:, index].reshape(64, 64, 3), caption=f"Label: {labels[0, index]}", use_column_width=True)
+else:
+    st.warning("Invalid Index. Please enter a valid index within the dataset size.")
