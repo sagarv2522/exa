@@ -3,7 +3,7 @@ import numpy as np
 import h5py
 
 # Load dataset
-train_dataset = h5py.File(r'F:\vs code\train_catvnoncat.h5', "r")
+train_dataset = h5py.File('train_catvnoncat.h5', "r")
 train_set_x_orig = np.array(train_dataset["train_set_x"][:])
 
 # Streamlit app
